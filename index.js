@@ -17,15 +17,17 @@ const { search } = require("yt-search");
 const client = new Client({ intents: ['GUILDS', 'GUILD_MESSAGES', 'GUILD_VOICE_STATES'] });
 const player = createAudioPlayer();
 const prefix = "!";
+let connection = null;
 const commands = [
   {
     name: "play",
     init: playSong
+  },
+  {
+    name: "bye",
+    init: bye
   }
 ]
-
-
-//client.destroy();
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -55,30 +57,49 @@ async function playSong(message) {
     message.channel.send("Erro! Faltou o titulo da música!");
     return;
   };
-
+  
   //recupera o canal de voz conectado pelo usuario que enviou a mensagem
   const channel = message.member?.voice.channel
 
   if(channel) {
-    const connection = await connectToChannel(channel);
-    const videos = await yts( args.join(' ') );
-    const id = videos.all[0].videoId;
+    connection = await connectToChannel(channel);
 
-    console.log(args.join(' '));
+    let url = null;
+    let videos = {};
 
-    stream = searchVideoById(id);
-    const resource = createAudio(stream);
-    resource.volume.setVolume(1);
-    player.play(resource);
-    connection.subscribe(player);
-    message.channel.send(`Tocando ${videos.all[0].title} \n hihihi`);
+    if(args[0].includes("watch?v=")) {
+      console.log('entrou', args[0]);
+      url = args[0];
+      const videoId = args[0].slice(args[0].indexOf("watch?v=") + "watch?v=".length).split("&")[0];
+      videos.all = [await yts( {videoId} )];
+      console.log("videoteste", videos);
+      //
+    } else {
+      console.log('entrou nao');
+      videos = await yts( args.join(' ') );
+      url = "https://www.youtube.com/watch?v=" + videos.all[0].videoId;
+    }
+  
+    //console.log("id: ", id);
+    //console.log(args.join(' '));
+    
+    stream = searchVideoByUrl(url);
+    console.log("stream: ", stream);
+    const resource = await createAudio(stream);
+    //console.log("resource: ", resource);
+    await resource.volume.setVolume(0.5);
+    await player.play(resource);
+    //console.log("player: ", player);
+    await connection.subscribe(player);
+    message.channel.send(`:notes: Tocando ${videos.all[0].title} :notes: \n hihihi`);
   }
 }
 
-function searchVideoById(id) {
-  return ytdl("https://www.youtube.com/watch?v=" + id, {
+function searchVideoByUrl(url) {
+  return ytdl(url, {
     filter: 'audioonly',
-    highWaterMark: 1<<25
+    highWaterMark: 1<<25,
+    quality: 'highestaudio'
   });
 }
 
@@ -102,6 +123,11 @@ async function connectToChannel(channel) {
 		connection.destroy();
 		throw error;
 	}
+}
+
+async function bye(message) {
+  message.channel.send(`Até mais! :wave:`);
+  connection.disconnect();
 }
 
 client.login(config.BOT_TOKEN);
