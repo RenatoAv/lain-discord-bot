@@ -72,7 +72,6 @@ async function playSong(message) {
       url = args[0];
       const videoId = args[0].slice(args[0].indexOf("watch?v=") + "watch?v=".length).split("&")[0];
       videos.all = [await yts( {videoId} )];
-      console.log("videoteste", videos);
       //
     } else {
       console.log('entrou nao');
